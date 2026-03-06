@@ -1,50 +1,132 @@
-import json
-from django.http import JsonResponse
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from .models import User, Post
+from rest_framework.pagination import PageNumberPagination
 
-# --- USER VIEWS ---
+from .models import Post, Like
+from .serializers import PostSerializer, CommentSerializer
+from authors.models import Author
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])  # This locks the door!
-def get_users(request):
-    try:
-        users = list(User.objects.values('id', 'username', 'email', 'created_at'))
-        return JsonResponse(users, safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
 
+# -----------------------
+# Post ViewSet
+# -----------------------
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all().order_by('-created_at')  # newest first
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticated]
+
+    # Ensure posts only have valid authors
+    def create(self, request, *args, **kwargs):
+        author_id = request.data.get('author')
+
+        if not author_id:
+            return Response(
+                {"error": "Author is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            return Response(
+                {"error": "Author not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return super().create(request, *args, **kwargs)
+
+
+# -----------------------
+# Like Post
+# -----------------------
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_user(request):
+def like_post(request, id):
     try:
-        data = json.loads(request.body)
-        user = User.objects.create(username=data['username'], email=data['email'])
-        return JsonResponse({'id': user.id, 'message': 'User created successfully'}, status=201)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        post = Post.objects.get(id=id)
+    except Post.DoesNotExist:
+        return Response(
+            {"error": "Post not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
-# --- POST VIEWS ---
+    like, created = Like.objects.get_or_create(
+        user=request.user,
+        post=post
+    )
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_posts(request):
-    try:
-        posts = list(Post.objects.values('id', 'content', 'author', 'created_at'))
-        return JsonResponse(posts, safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+    if not created:
+        return Response(
+            {"error": "You already liked this post"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
+    return Response(
+        {"message": "Post liked successfully"},
+        status=status.HTTP_201_CREATED
+    )
+
+
+# -----------------------
+# Comment on Post
+# -----------------------
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_post(request):
+def comment_post(request, id):
     try:
-        data = json.loads(request.body)
-        author = User.objects.get(id=data['author'])
-        post = Post.objects.create(content=data['content'], author=author)
-        return JsonResponse({'id': post.id, 'message': 'Post created successfully'}, status=201)
-    except User.DoesNotExist:
-        return JsonResponse({'error': 'Author not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        post = Post.objects.get(id=id)
+    except Post.DoesNotExist:
+        return Response(
+            {"error": "Post not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    serializer = CommentSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save(user=request.user, post=post)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# -----------------------
+# Get Comments
+# -----------------------
+@api_view(['GET'])
+def get_comments(request, id):
+    try:
+        post = Post.objects.get(id=id)
+    except Post.DoesNotExist:
+        return Response(
+            {"error": "Post not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    comments = post.comments.all().order_by('-created_at')
+    serializer = CommentSerializer(comments, many=True)
+    return Response(serializer.data)
+
+
+# -----------------------
+# News Feed View
+# -----------------------
+class FeedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        # 1️ Get all posts
+        posts = Post.objects.all()
+
+        # 2️ Sort newest first
+        posts = posts.order_by('-created_at')
+
+        # 3️ Paginate
+        paginator = PageNumberPagination()
+        result_page = paginator.paginate_queryset(posts, request)
+
+        serializer = PostSerializer(result_page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)

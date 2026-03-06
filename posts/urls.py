@@ -1,10 +1,12 @@
 from django.urls import path
-from . import views
+from .views import FeedView, like_post, comment_post, get_comments
 
 urlpatterns = [
-    # These are the paths for your API data
-    path('users/', views.get_users, name='get_users'),
-    path('users/create/', views.create_user, name='create_user'),
-    path('posts/', views.get_posts, name='get_posts'),
-    path('posts/create/', views.create_post, name='create_post'),
+    # News Feed
+    path('feed/', FeedView.as_view(), name='feed'),
+
+    # Post interactions
+    path('<int:id>/like/', like_post, name='like_post'),
+    path('<int:id>/comment/', comment_post, name='comment_post'),
+    path('<int:id>/comments/', get_comments, name='get_comments'),
 ]
