@@ -25,7 +25,6 @@ The project focuses on creating and managing users and posts while applying Djan
 - Postman
 - Git
 - GitHub
-
 ---
 
 ## Project Structure
@@ -61,9 +60,6 @@ connectly_project/
 
 The project functionality was tested using Postman.
 Both successful and error responses were observed during testing.
-
-Postman Results Link:
-https://docs.google.com/document/d/189QPPIcU4RaQGVyYigwHyQvOZsHMTrkr1fN3oLiPtxs/edit?usp=sharing
 
 ---
 
