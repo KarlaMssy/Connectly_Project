@@ -1,26 +1,18 @@
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework import routers
 from rest_framework.authtoken.views import obtain_auth_token
+from rest_framework import routers
 from authors.views import AuthorViewSet
-from posts.views import PostViewSet
 
-router = routers.DefaultRouter()
-router.register(r'authors', AuthorViewSet)
-router.register(r'posts', PostViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include('posts.urls')),
 
-    # Token login endpoint
+    # Login endpoint
     path('api/login/', obtain_auth_token),
+    path('api/token/', obtain_auth_token, name='api_token_auth'),  # for obtaining auth token
 
-    # DRF router URLs
-    path('api/', include(router.urls)),
-
-    # Custom posts URLs (like feed, like, comment)
-    path('api/posts/', include('posts.urls')),
-
-    # Any auth_app URLs
-    path('api/auth/', include('auth_app.urls')),
+    # Custom post URLs (feed, like, comment)
+    path('api/posts/', include('posts.urls')),  
 ]

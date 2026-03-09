@@ -1,12 +1,22 @@
 from django.urls import path
-from .views import FeedView, like_post, comment_post, get_comments
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import PostListCreateView, FeedView, PostCommentsView, like_post, AddCommentView
 
 urlpatterns = [
-    # News Feed
+    # Posts — list & create
+    path('', PostListCreateView.as_view(), name='post-list-create'),
+
+    # Feed
     path('feed/', FeedView.as_view(), name='feed'),
 
-    # Post interactions
-    path('<int:id>/like/', like_post, name='like_post'),
-    path('<int:id>/comment/', comment_post, name='comment_post'),
-    path('<int:id>/comments/', get_comments, name='get_comments'),
+    # Comments
+    path('<int:post_id>/comments/', PostCommentsView.as_view(), name='get_comments'),  # GET
+    path('<int:post_id>/comment/', AddCommentView.as_view(), name='add_comment'),      # POST
+
+    # Likes
+    path('<int:post_id>/like/', like_post, name='post-like'),
+
+    # JWT Authentication
+    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
