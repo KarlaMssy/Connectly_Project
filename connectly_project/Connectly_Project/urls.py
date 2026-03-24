@@ -15,4 +15,11 @@ urlpatterns = [
 
     # Custom post URLs (feed, like, comment)
     path('api/posts/', include('posts.urls')),  
+
+    # Auth endpoints
+    path('auth/', include('dj_rest_auth.urls')),
+    path('auth/registration/', include('dj_rest_auth.registration.urls')),
+
+    # Optional: token login
+    path('api/token/', obtain_auth_token, name='api_token_auth'),
 ]
